@@ -42,9 +42,8 @@ namespace Pseudoku.Solver.Methods
 
             if (cell.PossibleValues.Count == 1)
             {
-
                 cell.CurrentValue   = cell.PossibleValues.First(); //only 1 value remains.
-                solveMessage = $"{solveMessage}\nSolved for {cell.CurrentValue} in R{cell.CellRow} C{cell.CellColumn} : Naked Single Intersection Removal";
+                solveMessage = $"{solveMessage}\nSolved for {cell.CurrentValue} in R{cell.CellRow} C{cell.CellColumn} : Intersection Removal";
                 cell.PossibleValues = new List<int>();
                 cell.SolvedCell     = true;
             }

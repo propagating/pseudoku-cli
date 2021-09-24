@@ -16,6 +16,8 @@ namespace Pseudoku.Solver.Validators
                 var moveVertical   = cell.CellRow + move.Item1;
                 var moveHorizontal = cell.CellColumn + move.Item2;
 
+                if(moveVertical < 1 || moveHorizontal < 1) {continue;}
+
                 var existingValues = board.BoardCells.Where(x => x.CellRow == moveVertical
                                                                  && x.CellColumn == moveHorizontal
                                                                  && x.SolvedCell

@@ -3,16 +3,15 @@ using System.Linq;
 
 namespace Pseudoku.Solver.Validators
 {
-    public class KnightUnique : IConstraintValidator
+    public class NoneConsecutive : IConstraintValidator
     {
-        public int ValidatorDifficulty { get; set; } = 1;
-        public static readonly List<(int,int)> KnightMoves = new List<(int, int)>{(1 , 2), (1 , -2), (-1, 2), (-1, -2), (2 , 1), (2 , -1), (-2, 1), (-2, -1)};
-
+        public int ValidatorDifficulty { get; set; } = 2;
+        public static readonly List<(int,int)> AdjacentCells = new List<(int, int)>{(1 , 1), (1 , -1), (-1, 1), (-1, -1)};
         public bool ValidatePotentialCellValues(PseudoCell cell, PseudoBoard board, out string solveMessage)
         {
             solveMessage = "";
             var startCount = cell.PossibleValues.Count; //can be used in case we need to implement guessing as a way to rollback changes
-            foreach (var move in KnightMoves.ToList())
+            foreach (var move in AdjacentCells.ToList())
             {
                 var moveVertical   = cell.CellRow + move.Item1;
                 var moveHorizontal = cell.CellColumn + move.Item2;
@@ -26,8 +25,12 @@ namespace Pseudoku.Solver.Validators
                                                                  && cell.PossibleValues.Contains(x.CurrentValue)).ToList();
                 foreach (var eCell in existingValues)
                 {
-                    solveMessage = $"{solveMessage}\nRemoved {eCell.CurrentValue} from R{cell.CellRow} C{cell.CellColumn} for conflict with R{eCell.CellRow} C{eCell.CellColumn} : Knight's Move Constraint";
-                    cell.PossibleValues.Remove(eCell.CurrentValue);
+                    var consecutiveValues = new List<int> { eCell.CurrentValue + 1, eCell.CurrentValue - 1 };
+                    foreach (var value in consecutiveValues)
+                    {
+                        solveMessage = $"{solveMessage}\nRemoved {value} from R{cell.CellRow} C{cell.CellColumn} for conflict with R{eCell.CellRow} C{eCell.CellColumn} : None Consecutive Constraint";
+                        cell.PossibleValues.Remove(value);
+                    }
                 }
 
                 if (cell.PossibleValues.Count == 1)
@@ -43,6 +46,5 @@ namespace Pseudoku.Solver.Validators
 
             return cell.PossibleValues.Count != startCount;
         }
-
     }
 }
