@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Pseudoku.Solver.Enums;
 using Pseudoku.Solver.Methods;
 using Pseudoku.Solver.Validators;
 
@@ -31,7 +32,7 @@ namespace Pseudoku.Solver
             CurrentBoard = board;
 
             SolverMethods.Add(new HiddenSingle());
-            SolverMethods.Add(new IntersectionRemoval());
+            SolverMethods.Add(new ConjugatePair());
 
 
             foreach (var constraint in constraints)
@@ -60,13 +61,14 @@ namespace Pseudoku.Solver
             }
         }
 
-        public void StepSolve()
+        public SolveStatus StepSolve()
         {
             var boardStateChanged = false;
             var solvableCells = CurrentBoard.BoardCells.Where(x => !x.SolvedCell).ToList();
             var noChangeMade = 0;
             var solveMessage = "";
-            while (!boardStateChanged && noChangeMade <= 100)
+            var stepType = SolverStepType.FailStep;
+            while (!boardStateChanged && !CurrentBoard.PuzzleSolved)
             {
                 var baseDifficulty = 1;
                 var validatorSuccess = false;
@@ -79,6 +81,7 @@ namespace Pseudoku.Solver
                         if (validator.ValidatePotentialCellValues(cell, CurrentBoard, out solveMessage))
                         {
                             validatorSuccess = true;
+                            stepType = SolverStepType.ValidatorStep;
                             break;
                         }
                     }
@@ -100,6 +103,7 @@ namespace Pseudoku.Solver
                         if (method.ApplyMethod(cell, CurrentBoard, out solveMessage))
                         {
                             methodSuccess = true;
+                            stepType = SolverStepType.MethodStep;
                             break;
                         }
                     }
@@ -114,27 +118,40 @@ namespace Pseudoku.Solver
 
                 baseDifficulty++;
                 noChangeMade++;
+
+                if (noChangeMade >= 100)
+                {
+                    Console.WriteLine("No Board State change for 100 iterations. Solve could not complete.");
+                    Console.WriteLine($"Total Steps = {CurrentStep.SolverStepId}");
+                    return SolveStatus.NoStateChange;
+                }
             }
 
-            if (boardStateChanged)
+            SolverSteps.Add(CurrentStep);
+            var nextStep = new SolverStep
             {
-                SolverSteps.Add(CurrentStep);
-                var nextStep = new SolverStep
+                SolverStepId = CurrentStep.SolverStepId+1,
+                StepComment  = solveMessage,
+                StepType = stepType,
+                BoardState   = new SolverState
                 {
-                    SolverStepId = CurrentStep.SolverStepId+1,
-                    StepComment  = solveMessage,
-                    BoardState   = new SolverState
-                    {
-                        BoardCells  = CurrentBoard.BoardCells.ToList(),
-                        SolvedState = false
-                    }
-                };
-                CurrentStep  = nextStep;
-                CurrentBoard = new PseudoBoard(CurrentBoard.BoardCells.ToList());
-                CurrentBoard.PrintBoard();
-            }
+                    BoardCells  = CurrentBoard.BoardCells.ToList(),
+                    SolvedState = false
+                }
+            };
+            CurrentStep  = nextStep;
+            CurrentBoard = new PseudoBoard(CurrentBoard.BoardCells.ToList());
+            CurrentBoard.PrintBoard();
+
             if(!string.IsNullOrEmpty(solveMessage)) Console.WriteLine(solveMessage);
             Console.WriteLine($"Total Steps = {CurrentStep.SolverStepId}");
+
+            if (CurrentBoard.PuzzleSolved)
+            {
+                return SolveStatus.BoardSolved;
+            }
+
+            return SolveStatus.StateChange;
         }
         public void SolveComplete()
         {
@@ -197,4 +214,6 @@ namespace Pseudoku.Solver
                               $"\nTotal Actions Taken (Validators & Solve Methods w/ Legal Move Available) {totalSteps-totalFailures}");
         }
     }
+
+
 }

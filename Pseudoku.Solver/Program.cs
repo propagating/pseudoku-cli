@@ -1,68 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
+using System.Diagnostics;
 using System.Linq;
+using Pseudoku.Solver.Enums;
 
 namespace Pseudoku.Solver
 {
     class Program
     {
+        public const string SudokuGridString =  "080090030030000069902063158020804590851907046394605870563040987200000015010050020";
+        public const string KnightsGridString = "003608100040000070200000003600090008000102000700060004400000001060000020005409800";
+        public const string KingsGridString   = "070003000009000507010070020800205000006000400000908005050030040201000800000500090";
+
         static void Main(string[] args)
         {
             var quitResponse = "";
             do
             { Console.WriteLine("Welcome to PsuedoSolver");
-                var sudokuGridString  = "005003060000580104300900050450039700100075000930000540500104093000358072003200600";
-                var knightsGridString = "003608100040000070200000003600090008000102000700060004400000001060000020005409800";
-                var kingsGridString   = "070003000009000507010070020800205000006000400000908005050030040201000800000500090";
-                var puzzleConstraints = new List<PuzzleConstraint>();
 
+                var puzzleConstraints = new List<PuzzleConstraint>();
                 Helpers.WriteBreak();
+
                 var numColumn = GetGridColumns();
                 var numRow = GetGridRows();
-                var gridString = GetGridString(numColumn, numRow, sudokuGridString, knightsGridString, kingsGridString, puzzleConstraints);
+                var gridString = GetGridString(numColumn, numRow, SudokuGridString, KnightsGridString, KingsGridString, puzzleConstraints);
+
                 if(!puzzleConstraints.Any()) GetConstraints(puzzleConstraints);
                 Helpers.WriteBreak();
 
-                Console.WriteLine("Please verify the dimensions, constraints, and puzzle string are correct.");
-                Console.WriteLine($"Puzzle Dimension : {numRow} Rows by {numColumn} Columns");
-                Helpers.WriteBreak();
-                Console.WriteLine($"Constrains Chosen:");
-
-                foreach (var c in puzzleConstraints)
-                {
-                    switch (c)
-                    {
-                        case PuzzleConstraint.RowUnique:
-                            Console.WriteLine("Row Unique Sudoku Rules");
-                            break;
-                        case PuzzleConstraint.ColumnUnique:
-                            Console.WriteLine("Column Unique Sudoku Rules");
-                            break;
-                        case PuzzleConstraint.BoxUnique:
-                            Console.WriteLine("Box Unique Sudoku Rules");
-                            break;
-                        case PuzzleConstraint.KnightUnique:
-                            Console.WriteLine("Knight's Move Constraint");
-                            break;
-                        case PuzzleConstraint.KingUnique:
-                            Console.WriteLine("King's Move Constraint");
-                            break;
-                        default:
-                            throw new ArgumentOutOfRangeException();
-                    }
-                }
-
-                Helpers.WriteBreak();
-                Console.WriteLine("Puzzle String");
-                Console.WriteLine(gridString);
-                Helpers.WriteBreak();
-                Console.WriteLine("Enter any key to continue, except for (S).\nEnter (S) to start from the beginning.");
-                if (Console.ReadLine().ToUpper() == "S")
-                {
-                    continue;
-                }
-
+                if (VerifyPuzzleParameters(numRow, numColumn, puzzleConstraints, gridString)) continue;
                 Helpers.WriteBreak();
 
                 Console.WriteLine("Current Board State");
@@ -72,20 +38,41 @@ namespace Pseudoku.Solver
 
 
                 Console.WriteLine("(S)tep Solve or (N)ormal Solve?");
-                var solver = new PseudoSolver(puzzleConstraints, board);
 
-                if (Console.ReadLine().ToUpperInvariant() != "S")
+                var solver = new PseudoSolver(puzzleConstraints, board);
+                var solveResponse = Console.ReadLine();
+                if (solveResponse.ToUpperInvariant() != "S")
                 {
                     Console.WriteLine("You selected Normal Solve, or an invalid method was chosen.\nNormal Solve will be used.\n \nPress any key to begin");
                     Console.ReadLine();
                     solver.SolveComplete();
                 }
-
-                while (true)
+                else if(solveResponse.ToUpperInvariant() == "S")
                 {
-                    solver.StepSolve();
-                    if (solver.CurrentBoard.PuzzleSolved) break; //do this to capture the last solved step in the list of states
+                    Console.WriteLine("You have selected step solve.");
+                    var timer = new Stopwatch();
+                    timer.Start();
+                    var status = SolveStatus.BoardStart;
+                    do
+                    {
+                        status = solver.StepSolve();
+                        if (status == SolveStatus.BoardSolved)
+                        {
+                            timer.Stop();
+                            solver.CurrentBoard.PrintBoard();
+                            Helpers.WriteBreak();
+                            Console.WriteLine($"Completed Puzzle String");
+                            Console.WriteLine(solver.CurrentBoard.SerialiseBoardToPuzzleString());
+                            Helpers.WriteBreak();
+                            Console.WriteLine($"Puzzle Solved in {timer.Elapsed}\nTotal Steps Taken (Validators & Solve Methods) {solver.SolverSteps.Count()}" +
+                                              $"\nTotal Validator Steps Taken {solver.SolverSteps.Where(x => x.StepType == SolverStepType.ValidatorStep).Count()}" +
+                                              $"\nTotal Method Steps Taken {solver.SolverSteps.Where(x => x.StepType == SolverStepType.MethodStep).Count()}" +
+                                              $"\nTotal Actions Taken (Validators & Solve Methods w/ Legal Move Available) {solver.SolverSteps.Count() - solver.SolverSteps.Where(x => x.StepType == SolverStepType.FailStep).Count()}");
+                        } //do this to capture the last solved step in the list of states
+                    } while (status != SolveStatus.NoStateChange && status != SolveStatus.BoardSolved);
+
                 }
+
 
 
                 Console.WriteLine("Enter any key to select a different puzzle, except for (Q).\nEnter (Q) to quit");
@@ -93,6 +80,50 @@ namespace Pseudoku.Solver
             }
             while (string.IsNullOrWhiteSpace(quitResponse) || quitResponse.ToUpper() != "Q") ;
 
+        }
+
+        private static bool VerifyPuzzleParameters(int numRow, int numColumn, List<PuzzleConstraint> puzzleConstraints, string gridString)
+        {
+            Console.WriteLine("Please verify the dimensions, constraints, and puzzle string are correct.");
+            Console.WriteLine($"Puzzle Dimension : {numRow} Rows by {numColumn} Columns");
+            Helpers.WriteBreak();
+            Console.WriteLine($"Constrains Chosen:");
+
+            foreach (var c in puzzleConstraints)
+            {
+                switch (c)
+                {
+                    case PuzzleConstraint.RowUnique:
+                        Console.WriteLine("Row Unique Sudoku Rules");
+                        break;
+                    case PuzzleConstraint.ColumnUnique:
+                        Console.WriteLine("Column Unique Sudoku Rules");
+                        break;
+                    case PuzzleConstraint.BoxUnique:
+                        Console.WriteLine("Box Unique Sudoku Rules");
+                        break;
+                    case PuzzleConstraint.KnightUnique:
+                        Console.WriteLine("Knight's Move Constraint");
+                        break;
+                    case PuzzleConstraint.KingUnique:
+                        Console.WriteLine("King's Move Constraint");
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+            }
+
+            Helpers.WriteBreak();
+            Console.WriteLine("Puzzle String");
+            Console.WriteLine(gridString);
+            Helpers.WriteBreak();
+            Console.WriteLine("Enter any key to continue, except for (S).\nEnter (S) to start from the beginning.");
+            if (Console.ReadLine()?.ToUpper() == "S")
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private static int GetGridColumns()
@@ -241,6 +272,7 @@ namespace Pseudoku.Solver
     {
         public uint SolverStepId { get; set; }
         public string StepComment { get; set; }
+        public SolverStepType StepType { get; set; }
         public SolverState BoardState { get; set; }
     }
 
@@ -248,23 +280,5 @@ namespace Pseudoku.Solver
     {
         public List<PseudoCell> BoardCells { get; set; }
         public bool SolvedState { get; set; }
-    }
-
-    public enum PuzzleConstraint
-    {
-        RowUnique,
-        ColumnUnique,
-        BoxUnique,
-        KnightUnique,
-        KingUnique
-    }
-
-    enum ActionType
-    {
-        UpdatePossibleValue,
-        TryPossibleValue,
-        SetCurrentValue,
-        SolveCell,
-        SolveBoard
     }
 }

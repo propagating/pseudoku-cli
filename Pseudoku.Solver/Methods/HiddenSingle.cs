@@ -13,11 +13,11 @@ namespace Pseudoku.Solver.Methods
             solveMessage = "";
             foreach (var value in cell.PossibleValues)
             {
-                var rowCells = board.BoardCells.Where(x=> x.CellRow == cell.CellRow).Where(x => x.PossibleValues.Contains(value)).ToList();
-                var colCells = board.BoardCells.Where(x=> x.CellColumn == cell.CellColumn).Where(x => x.PossibleValues.Contains(value)).ToList();
-                var boxCells = board.BoardCells.Where(x=> x.CellBox == cell.CellBox).Where(x => x.PossibleValues.Contains(value)).ToList();
+                var rowCells = board.BoardCells.Where(x => x.CellRow == cell.CellRow).Where(x => x.PossibleValues.Contains(value)).Count();
+                var colCells = board.BoardCells.Where(x=> x.CellColumn == cell.CellColumn).Where(x => x.PossibleValues.Contains(value)).Count();
+                var boxCells = board.BoardCells.Where(x=> x.CellBox == cell.CellBox).Where(x => x.PossibleValues.Contains(value)).Count();
 
-                if (rowCells.Count == 1 || colCells.Count == 1 || boxCells.Count == 1)
+                if (rowCells == 1 || colCells == 1 || boxCells == 1)
                 {
                     cell.CurrentValue = value;
                     solveMessage = $"{solveMessage}\nSolved for {cell.CurrentValue} in R{cell.CellRow} C{cell.CellColumn} : Hidden Single";
